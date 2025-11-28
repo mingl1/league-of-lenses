@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-blue-gradient">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -7,214 +7,728 @@
     <title>League of Lenses</title>
     <link rel="icon" href="icon.png" />
 
-    <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Rajdhani:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="./output.css" rel="stylesheet" />
+
+    <style>
+      :root {
+        --hex-gold: #c8aa6e;
+        --hex-gold-dim: #785a28;
+        --hex-blue: #0ac8b9;
+        --hex-dark: #010a13;
+        --hex-panel: rgba(10, 20, 40, 0.95);
+      }
+
+      /* --- Atmospheric Background --- */
+      body {
+        background-color: var(--hex-dark);
+        background-image: radial-gradient(
+            circle at 50% 0%,
+            #1e2f47 0%,
+            #010a13 80%
+          ),
+          url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l25.98 15v30L30 60 4.02 45V15z' fill-opacity='0.03' fill='%23C8AA6E' fill-rule='evenodd'/%3E%3C/svg%3E");
+        color: #f0f0f0;
+        font-family: "Rajdhani", sans-serif;
+        overflow-x: hidden;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-family: "Cinzel", serif;
+        letter-spacing: 0.05em;
+      }
+
+      /* --- Hextech Borders & Glows --- */
+      .hex-panel {
+        background: var(--hex-panel);
+        border: 1px solid var(--hex-gold-dim);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.8),
+          inset 0 0 0 1px rgba(200, 170, 110, 0.1);
+        backdrop-filter: blur(8px);
+        position: relative;
+      }
+
+      .hex-panel::after {
+        content: "";
+        position: absolute;
+        top: -1px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 1px;
+        background: var(--hex-gold);
+        box-shadow: 0 0 10px var(--hex-gold);
+      }
+
+      /* --- Inputs --- */
+      .game-input {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid #333;
+        color: var(--hex-blue);
+        transition: all 0.3s ease;
+        font-family: "Rajdhani", sans-serif;
+        font-weight: 600;
+        letter-spacing: 1px;
+      }
+      .game-input:focus {
+        border-color: var(--hex-blue);
+        box-shadow: 0 0 10px rgba(10, 200, 185, 0.3);
+        outline: none;
+      }
+
+      /* --- Drop Zone --- */
+      .drop-zone {
+        background: radial-gradient(
+          circle,
+          rgba(10, 200, 185, 0.05) 0%,
+          rgba(0, 0, 0, 0) 70%
+        );
+        border: 2px dashed var(--hex-gold-dim);
+        transition: all 0.3s ease;
+      }
+      .drop-zone:hover {
+        border-color: var(--hex-blue);
+        background: radial-gradient(
+          circle,
+          rgba(10, 200, 185, 0.1) 0%,
+          rgba(0, 0, 0, 0) 70%
+        );
+      }
+
+      /* --- Staggered Animation --- */
+      .animate-enter {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideUpFade 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      }
+      .delay-1 {
+        animation-delay: 0.1s;
+      }
+      .delay-2 {
+        animation-delay: 0.2s;
+      }
+      .delay-3 {
+        animation-delay: 0.3s;
+      }
+      .delay-4 {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes slideUpFade {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* --- Loader --- */
+      .loader-rune {
+        border: 3px solid rgba(200, 170, 110, 0.2);
+        border-top: 3px solid var(--hex-gold);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* --- Modal Styles --- */
+      #modal-overlay {
+        background: rgba(1, 10, 19, 0.9);
+      }
+    </style>
   </head>
 
-  <body class="relative h-full pb-10 bg-blue-gradient min-h-screen">
-    <!-- top: title, ... -->
-    <div class="topcontainer ml-4 mt-8 justify-center flex">
-      <div class="title mb-8">
-        <h1 class="text-5xl">League of Lenses</h1>
-      </div>
+  <body
+    class="min-h-screen flex flex-col items-center justify-start pt-12 pb-20 selection:bg-cyan-900 selection:text-cyan-100 relative"
+  >
+    <div
+      class="fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#C8AA6E] to-transparent opacity-50 z-40"
+    ></div>
+
+    <div class="topcontainer text-center mb-10 animate-enter">
+      <h1
+        class="text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-[#F0E6D2] to-[#C8AA6E] drop-shadow-[0_2px_10px_rgba(200,170,110,0.3)]"
+      >
+        LEAGUE OF LENSES
+      </h1>
+      <p
+        class="text-[#0AC8B9] tracking-[0.3em] text-sm mt-2 uppercase font-bold opacity-80"
+      >
+        Summoner's Rift to Shorts Converter
+      </p>
     </div>
 
-    <!-- main content -->
-    <div class="w-full items-center flex flex-col mb-8">
-      <!-- inputs -->
-      <form id="form" class="flex flex-col space-y-4 items-center">
-        <div>
-          <!-- file input -->
-          <div
-            class="hero2 rounded-lg w-[450px] h-[250px] p-8 text-center align-center"
-            id="v-container"
-          >
-            <label
-              for="input-file"
-              id="drop-area"
-              class="w-full h-full flex justify-center items-center flex-col border-2 border-solid rounded-lg cursor-pointer"
-            >
-              <input
-                type="file"
-                name="input-file"
-                id="input-file"
-                accept=".mp4, .mov"
-                required
-                hidden
-                class="w-full h-full"
-              />
+    <div
+      class="w-full max-w-6xl px-4 grid grid-cols-1 lg:grid-cols-2 gap-12 items-start"
+    >
+      <div class="flex flex-col items-center w-full animate-enter delay-1">
+        <form
+          id="form"
+          class="w-full max-w-lg hex-panel rounded-xl p-1 bg-opacity-50"
+        >
+          <div class="p-8 flex flex-col space-y-6">
+            <div class="relative group">
+              <div class="hero2 w-full h-[280px] relative">
+                <label
+                  for="input-file"
+                  id="drop-area"
+                  class="drop-zone w-full h-full flex justify-center items-center flex-col rounded-lg cursor-pointer overflow-hidden relative"
+                >
+                  <input
+                    type="file"
+                    name="input-file"
+                    id="input-file"
+                    accept=".mp4, .mov"
+                    required
+                    hidden
+                  />
 
-              <!-- ? -->
-              <div>
-                <!-- wait display -->
-                <div class="w-full hidden" id="loading-box">
-                  <div class="loader"></div>
-                  Loading
+                  <div
+                    id="upload-prompt"
+                    class="text-center transition-opacity duration-300"
+                  >
+                    <div
+                      class="mb-4 mx-auto w-16 h-16 border-2 border-[#C8AA6E] rounded-full flex items-center justify-center text-[#C8AA6E] group-hover:bg-[#C8AA6E] group-hover:text-black transition-colors"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        class="w-8 h-8"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                        />
+                      </svg>
+                    </div>
+                    <p class="text-xl font-bold text-[#f0f0f0]">
+                      DROP REPLAY HERE
+                    </p>
+                    <p class="text-sm text-[#0AC8B9] mt-1 opacity-70">
+                      .MP4 or .MOV
+                    </p>
+                  </div>
+
+                  <div
+                    id="loading-box"
+                    class="hidden flex-col items-center justify-center w-full h-full absolute top-0 left-0 bg-black/80 z-20"
+                  >
+                    <div class="loader-rune mb-3"></div>
+                    <span
+                      class="text-[#C8AA6E] tracking-widest text-sm animate-pulse"
+                      >ANALYZING RIFT DATA...</span
+                    >
+                  </div>
+
+                  <div
+                    id="video-wrapper"
+                    class="hidden w-full h-full relative group/video"
+                  >
+                    <button
+                      type="button"
+                      id="cancel-btn"
+                      class="absolute top-2 right-2 z-20 bg-black/60 border border-gray-600 text-gray-400 hover:border-red-500 hover:bg-red-900/80 hover:text-red-400 p-1.5 rounded-md opacity-0 group-hover/video:opacity-100 transition-all duration-200"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        class="w-5 h-5"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+
+                    <video
+                      id="vid"
+                      class="w-full h-full object-cover rounded-lg"
+                      controls
+                      playsinline
+                    ></video>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div id="ddisplay" class="hidden">
+              <a
+                href=""
+                id="dbtn"
+                class="block w-full text-center py-3 rounded border border-[#0AC8B9] text-[#0AC8B9] font-bold hover:bg-[#0AC8B9] hover:text-black transition-all uppercase tracking-widest shadow-[0_0_15px_rgba(10,200,185,0.3)]"
+              >
+                Download Clip
+              </a>
+            </div>
+
+            <div
+              id="time"
+              class="grid grid-cols-2 gap-6 pt-4 border-t border-white/10"
+            >
+              <div class="space-y-2">
+                <h4
+                  class="text-[#C8AA6E] text-xs uppercase tracking-widest text-center"
+                >
+                  In-Game Start
+                </h4>
+                <div class="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    placeholder="00"
+                    id="start-min"
+                    class="game-input w-full p-2 text-center rounded text-xl"
+                  />
+                  <span class="text-gray-500 font-bold">:</span>
+                  <input
+                    type="number"
+                    placeholder="00"
+                    id="start-sec"
+                    class="game-input w-full p-2 text-center rounded text-xl"
+                  />
                 </div>
               </div>
 
-              <!-- video -->
-              <div class="overflow-hidden">
-                <video
-                  src=""
-                  id="vid"
-                  autoplay
-                  muted
-                  loop
-                  class="hidden"
-                ></video>
+              <div class="space-y-2">
+                <h4
+                  class="text-[#C8AA6E] text-xs uppercase tracking-widest text-center"
+                >
+                  In-Game End
+                </h4>
+                <div class="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    placeholder="00"
+                    id="end-min"
+                    class="game-input w-full p-2 text-center rounded text-xl"
+                  />
+                  <span class="text-gray-500 font-bold">:</span>
+                  <input
+                    type="number"
+                    placeholder="00"
+                    id="end-sec"
+                    class="game-input w-full p-2 text-center rounded text-xl"
+                  />
+                </div>
               </div>
+            </div>
 
-              <p
-                id="drop-txt"
-                class="text-md px-2 rounded-lg text-center cursor-pointer"
+            <div class="flex items-center justify-center space-x-3 pt-2">
+              <input
+                type="checkbox"
+                id="audio"
+                name="audio"
+                checked
+                class="w-5 h-5 accent-[#0AC8B9] cursor-pointer bg-gray-800 border-gray-600 rounded focus:ring-[#0AC8B9]"
+              />
+              <label
+                for="audio"
+                class="text-gray-300 text-sm tracking-wide cursor-pointer select-none"
+                >INCLUDE AUDIO TRACK</label
               >
-                Upload Video
-              </p>
-            </label>
-          </div>
-
-          <!-- </label> -->
-        </div>
-
-        <!-- download btn -->
-        <div
-          id="ddisplay"
-          class="hidden rounded-lg bg-white px-2 hover:bg-sky-700 cursor-pointer"
-        >
-          <a href="" id="dbtn">download</a>
-        </div>
-
-        <!-- time input -->
-        <div id="time" class="space-y-4">
-          <!-- start time -->
-          <div class="time1 flex flex-row space-x-2">
-            <div class="flex-1 text-right"><h4>start</h4></div>
-
-            <!-- start min -->
-            <div>
-              <input
-                type="number"
-                name="start-min"
-                placeholder="mins"
-                id="start-min"
-              />
             </div>
 
-            <!-- : -->
-            <div>
-              <h4>:</h4>
-            </div>
-
-            <!-- start sec -->
-            <div>
-              <input
-                type="number"
-                name="start-sec"
-                placeholder="secs"
-                id="start-sec"
-              />
+            <div id="submit" class="pt-4">
+              <button
+                type="submit"
+                class="w-full relative overflow-hidden group bg-gradient-to-r from-[#091428] to-[#1e2f47] border border-[#C8AA6E] text-[#C8AA6E] p-4 rounded hover:text-white transition-all duration-300"
+              >
+                <div
+                  class="absolute inset-0 w-0 bg-[#C8AA6E] transition-all duration-[250ms] ease-out group-hover:w-full opacity-100"
+                ></div>
+                <span
+                  class="relative font-cinzel font-bold text-xl tracking-[0.2em] group-hover:text-black z-10 uppercase"
+                >
+                  Isolate Highlights
+                </span>
+              </button>
             </div>
           </div>
-          <!-- end time -->
-          <div class="time2 flex flex-row space-x-2">
-            <div class="text-right"><h4>end</h4></div>
-            <div>
-              <input
-                type="number"
-                name="end-min"
-                placeholder="mins"
-                id="end-min"
-              />
-            </div>
+        </form>
+      </div>
 
-            <div>
-              <h4>:</h4>
-            </div>
+      <div
+        class="text-left text-gray-300 space-y-8 animate-enter delay-2 lg:pt-8"
+      >
+        <div class="prose prose-invert max-w-none">
+          <p
+            class="text-xl leading-relaxed font-light text-gray-400 border-l-2 border-[#0AC8B9] pl-6 italic"
+          >
+            "Every pentakill deserves an audience."
+          </p>
 
-            <div>
-              <input
-                type="number"
-                name="end-sec"
-                placeholder="secs"
-                id="end-sec"
-              />
-            </div>
+          <div class="mt-8 space-y-6">
+            <h3 class="text-2xl text-[#C8AA6E] border-b border-gray-800 pb-2">
+              Automatic Zoom Tech
+            </h3>
+            <p>
+              League of Lenses isn't just a cropper. It analyzes your
+              <strong class="text-[#0AC8B9]">Champion focus</strong> and
+              <strong class="text-[#0AC8B9]">teamfight density</strong> to
+              dynamically pan and zoom, ensuring your vertical YouTube Shorts
+              capture every skillshot without losing the HUD context.
+            </p>
+
+            <h3
+              class="text-2xl text-[#C8AA6E] border-b border-gray-800 pb-2 mt-8"
+            >
+              How to Operate
+            </h3>
+            <ul class="space-y-4 font-light">
+              <li class="flex items-start">
+                <span class="text-[#0AC8B9] font-bold mr-3">01.</span>
+                <span>Drag your replay file into the hex-portal.</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-[#0AC8B9] font-bold mr-3">02.</span>
+                <span>Confirm start/end times (Auto-detected).</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-[#0AC8B9] font-bold mr-3">03.</span>
+                <span
+                  >Click <strong>Isolate Highlights</strong>. The system will
+                  render a vertical cut.</span
+                >
+              </li>
+            </ul>
           </div>
         </div>
 
-        <!-- audio checkbox -->
-        <div id="sound">
-          <input type="checkbox" id="audio" name="audio" />
-          <label>include sound?</label>
+        <div class="text-xs text-gray-500 mt-12 border-t border-gray-800 pt-6">
+          <p>
+            By using League of Lenses, you agree to our
+            <a
+              href="tos.html"
+              class="text-[#C8AA6E] hover:text-[#0AC8B9] underline decoration-dotted underline-offset-4 transition-colors"
+            >
+              Terms of Service </a
+            >.
+            <span class="block mt-1 opacity-70"
+              >Video files are automatically purged after 3 days.</span
+            >
+          </p>
         </div>
-
-        <!-- submit btn -->
-        <div
-          id="submit"
-          class="rounded-lg bg-white block px-2 hover:bg-sky-700 cursor-pointer"
-        >
-          <button type="submit" class="text-lg hover:text-white cursor-pointer">
-            Clip
-          </button>
-        </div>
-      </form>
-
-      <!-- description -->
-      <div class="mt-4 w-[400px] text-left">
-        <p class="mb-4">
-          League of Lenses is the ultimate tool for League of Legends players
-          who want to showcase their best gameplay moments as YouTube Shorts.
-          Our web app allows you to effortlessly convert your League of Legends
-          clips into dynamic, action-packed videos. Unlike traditional video
-          editors, League of Lenses automatically zooms in on the most intense
-          fighting scenes, ensuring your audience stays engaged with every
-          critical moment.
-        </p>
-        <h2 class="text-lg mb-1">
-          How to Convert Your League of Legends Clips:
-        </h2>
-        <ol class="list-decimal list-inside mb-4">
-          <li>
-            Record Your Gameplay: Capture your favorite moments from your League
-            of Legends matches.
-          </li>
-          <li>
-            Upload Your Clip: Simply drag and drop your video into League of
-            Lenses.
-          </li>
-          <li>
-            Automatic Cropping: Watch as League of Lenses dynamically crops and
-            zooms into the most action-packed scenes, optimizing your clip for
-            YouTube Shorts.
-          </li>
-          <li>
-            Preview and Download: Review your video to make sure it’s perfect.
-            Then, download your new, high-impact clip ready to be shared with
-            the world.
-          </li>
-        </ol>
-        <p class="mb-2">
-          No need for complicated software—League of Lenses does all the heavy
-          lifting for you. Just focus on playing, and let us handle the rest.
-          Start turning your epic plays into captivating YouTube Shorts today!
-        </p>
-        <p>
-          By using League of Lenses, you agree to our Terms of Service. Thank
-          you for choosing us to amplify your League of Legends highlights!
-        </p>
       </div>
     </div>
 
-    <!-- footer -->
+    <div
+      id="modal-overlay"
+      class="fixed inset-0 z-50 hidden backdrop-blur-md flex items-center justify-center p-4 md:p-10"
+    >
+      <div class="relative w-full max-w-6xl hex-panel shadow-2xl flex flex-col">
+        <div
+          class="flex justify-between items-center p-4 border-b border-[#785A28]/50 bg-black/40"
+        >
+          <h3 class="text-[#C8AA6E] tracking-widest uppercase">
+            Video Inspection
+          </h3>
+          <button
+            id="close-modal"
+            class="text-gray-400 hover:text-white hover:scale-110 transition-transform"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke="currentColor"
+              class="w-8 h-8"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="relative w-full bg-black aspect-video">
+          <video id="modal-video" class="w-full h-full" controls></video>
+        </div>
+      </div>
+    </div>
+
     <footer
       id="footer"
-      class="absolute left-0 bottom-0 w-full text-center mt-2"
+      class="w-full text-center py-8 mt-auto text-gray-600 animate-enter delay-3"
     >
-      <small>Angela Lee and Ming Lin © 2024</small>
+      <small class="tracking-widest uppercase text-[10px]"
+        >Angela Lee & Ming Lin © 2024 • Forged in Code</small
+      >
     </footer>
 
-    <script src="index.js"></script>
+    <!-- <script src="index.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <script>
+      // --- DOM ELEMENTS ---
+      const form = document.getElementById("form");
+      const fileInput = document.getElementById("input-file");
+
+      // UI Containers
+      const uploadPrompt = document.getElementById("upload-prompt");
+      const loadingBox = document.getElementById("loading-box");
+      const videoWrapper = document.getElementById("video-wrapper");
+      const previewVideo = document.getElementById("vid");
+      const dDisplay = document.getElementById("ddisplay");
+      const dBtn = document.getElementById("dbtn");
+      const submitBtnContainer = document.getElementById("submit");
+
+      // Inputs
+      const startMin = document.getElementById("start-min");
+      const startSec = document.getElementById("start-sec");
+      const endMin = document.getElementById("end-min");
+      const endSec = document.getElementById("end-sec");
+      const audioCheck = document.getElementById("audio");
+
+      // Modal Elements
+      const modalOverlay = document.getElementById("modal-overlay");
+      const modalVideo = document.getElementById("modal-video");
+      const closeModalBtn = document.getElementById("close-modal");
+
+      // --- HELPER FUNCTIONS ---
+
+      // Generate random ID for filenames
+      function makeid(length) {
+        let result = "";
+        const characters =
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        const charactersLength = characters.length;
+        let counter = 0;
+        while (counter < length) {
+          result += characters.charAt(
+            Math.floor(Math.random() * charactersLength)
+          );
+          counter += 1;
+        }
+        return result;
+      }
+
+      // Sleep function to prevent browser freezing during polling
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      // --- EVENT LISTENERS ---
+
+      // 1. File Selection & Preview Logic
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files && fileInput.files[0]) {
+          const file = fileInput.files[0];
+          const fileURL = URL.createObjectURL(file);
+
+          // UI: Hide prompt, show loader briefly, then show video
+          uploadPrompt.classList.add("hidden");
+          loadingBox.classList.remove("hidden");
+          loadingBox.style.display = "flex";
+
+          // Simulate analysis delay for effect
+          setTimeout(() => {
+            loadingBox.style.display = "none";
+            videoWrapper.classList.remove("hidden");
+
+            previewVideo.src = fileURL;
+            modalVideo.src = fileURL; // Set modal source too
+            previewVideo.load();
+          }, 800);
+        }
+      });
+
+      // 2. Auto-Populate Duration
+      previewVideo.addEventListener("loadedmetadata", function () {
+        const duration = previewVideo.duration;
+        if (isFinite(duration)) {
+          const minutes = Math.floor(duration / 60);
+          const seconds = Math.floor(duration % 60);
+
+          // Auto-fill the end inputs
+          endMin.value = minutes;
+          endSec.value = seconds;
+        }
+      });
+      // --- NEW: Cancel / Clear Video Logic ---
+      const cancelBtn = document.getElementById("cancel-btn");
+
+      cancelBtn.addEventListener("click", (e) => {
+        e.preventDefault(); // Prevent form submission
+        e.stopPropagation(); // Prevent opening the file dialog again
+
+        // 1. Clear the file input
+        fileInput.value = "";
+
+        // 2. Pause video and clear source
+        previewVideo.pause();
+        previewVideo.src = "";
+
+        // 3. Reset UI to "Upload" state
+        videoWrapper.classList.add("hidden");
+        uploadPrompt.classList.remove("hidden");
+
+        // Optional: Reset timer inputs if you want them cleared too
+        endMin.value = "";
+        endSec.value = "";
+      });
+
+      const closeModal = () => {
+        previewVideo.currentTime = modalVideo.currentTime; // Sync time back
+        modalVideo.pause();
+        modalOverlay.classList.add("hidden");
+      };
+
+      closeModalBtn.addEventListener("click", closeModal);
+      modalOverlay.addEventListener("click", (e) => {
+        if (e.target === modalOverlay) closeModal();
+      });
+
+      // --- CORE UPLOAD LOGIC ---
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const file = fileInput.files[0];
+        if (!file) {
+          alert("Please select a video file first.");
+          return;
+        }
+
+        // 1. Calculate Seconds
+        const duration = Math.round(previewVideo.duration || 0);
+
+        // Calculate End Time
+        let endingInput = Number(endMin.value) * 60 + Number(endSec.value);
+        let endingSec =
+          (endMin.value !== "" || endSec.value !== "") &&
+          endingInput <= duration
+            ? endingInput
+            : duration;
+
+        // Calculate Start Time
+        const startingInput =
+          Number(startMin.value) * 60 + Number(startSec.value);
+        let startingSec = startingInput < endingSec ? startingInput : 0;
+
+        // Audio Boolean
+        const audioBool = audioCheck.checked ? "A" : "M";
+
+        // Generate Filename
+        const fileID = makeid(5); // shortened for cleanliness
+        const newFileName = `${fileID}-${startingSec}-${endingSec}-${audioBool}`;
+
+        console.log("Processing File:", newFileName);
+
+        // 2. UI: Lock Interface & Show Loading
+        videoWrapper.classList.add("hidden");
+        submitBtnContainer.classList.add("hidden"); // Hide submit button
+        loadingBox.classList.remove("hidden");
+        loadingBox.style.display = "flex";
+
+        // Update loading text (optional, assumes you might add a span inside loading-box)
+        // const loadingText = loadingBox.querySelector("span");
+        // if(loadingText) loadingText.innerText = "INITIALIZING UPLOAD...";
+
+        try {
+          // --- API STEP 1: Get Upload URL ---
+          const apiUrl =
+            "https://4f1wirqn9k.execute-api.us-east-1.amazonaws.com/Prod/upload";
+
+          const uploadRes = await axios.post(apiUrl, {
+            filename: newFileName + ".mp4",
+            withCredentials: false,
+          });
+
+          const { uploadUrl, fileKey, queueURL } = uploadRes.data;
+          console.log("Upload Key Generated:", fileKey);
+
+          // --- API STEP 2: Upload to S3 ---
+          // if(loadingText) loadingText.innerText = "UPLOADING TO VOID...";
+
+          await axios.put(uploadUrl, file, {
+            headers: { "Content-Type": "video/mp4" },
+          });
+
+          console.log("File Uploaded to S3.");
+
+          // --- API STEP 3: Poll for Completion ---
+          // if(loadingText) loadingText.innerText = "PROCESSING HIGHLIGHTS...";
+
+          const postUrl =
+            "https://n4g5fjhkqdah2chkv7xzpadfby0gexzo.lambda-url.us-east-1.on.aws/";
+          // https://3tmm5t3xpk.execute-api.us-east-1.amazonaws.com/Prod/clip
+          let stop = false;
+          let attempts = 0;
+          let clippedLink = "";
+
+          while (!stop) {
+            if (attempts > 30) {
+              // Timeout after ~60-90 seconds
+              throw new Error("Processing timed out.");
+            }
+
+            try {
+              const pollRes = await axios.post(postUrl, { queueURL: queueURL });
+
+              // Success condition
+              if (pollRes.status === 200 && pollRes.data) {
+                console.log("Process Complete:", pollRes);
+                clippedLink = pollRes.data;
+                stop = true;
+              }
+            } catch (error) {
+              // If 200 comes back in catch block (sometimes happens with axios interceptors)
+              if (error.response && error.response.status === 200) {
+                clippedLink = error.response.data;
+                stop = true;
+              } else {
+                console.log("Still processing... retrying in 3s");
+                await sleep(3000); // WAIT 3 SECONDS
+                attempts++;
+              }
+            }
+          }
+
+          // --- SUCCESS STATE ---
+          loadingBox.style.display = "none";
+
+          // Show Done Video (Optional: User wanted to see 'done.mp4' or the link)
+          // We will show the download button
+          dDisplay.classList.remove("hidden");
+          dBtn.href = clippedLink;
+          dBtn.innerText = "DOWNLOAD HIGHLIGHT"; // Update text
+
+          // Bring back preview (optional)
+          videoWrapper.classList.remove("hidden");
+        } catch (err) {
+          console.error("Error in workflow:", err);
+          loadingBox.style.display = "none";
+          videoWrapper.classList.remove("hidden");
+          submitBtnContainer.classList.remove("hidden");
+          alert("An error occurred during processing. Please try again.");
+        }
+      });
+    </script>
   </body>
 </html>
