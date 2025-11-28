@@ -15,7 +15,6 @@
     />
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="./output.css" rel="stylesheet" />
 
     <style>
       :root {
@@ -140,6 +139,14 @@
         height: 40px;
         animation: spin 1s linear infinite;
       }
+      .loader-rune-sm {
+        border: 2px solid rgba(200, 170, 110, 0.2);
+        border-top: 2px solid var(--hex-gold);
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+      }
       @keyframes spin {
         0% {
           transform: rotate(0deg);
@@ -152,6 +159,18 @@
       /* --- Modal Styles --- */
       #modal-overlay {
         background: rgba(1, 10, 19, 0.9);
+      }
+
+      /* History Scrollbar */
+      .history-scroll::-webkit-scrollbar {
+        width: 6px;
+      }
+      .history-scroll::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+      }
+      .history-scroll::-webkit-scrollbar-thumb {
+        background: var(--hex-gold-dim);
+        border-radius: 3px;
       }
     </style>
   </head>
@@ -238,6 +257,7 @@
                     <div class="loader-rune mb-3"></div>
                     <span
                       class="text-[#C8AA6E] tracking-widest text-sm animate-pulse"
+                      id="loading-text"
                       >ANALYZING RIFT DATA...</span
                     >
                   </div>
@@ -276,16 +296,6 @@
                   </div>
                 </label>
               </div>
-            </div>
-
-            <div id="ddisplay" class="hidden">
-              <a
-                href=""
-                id="dbtn"
-                class="block w-full text-center py-3 rounded border border-[#0AC8B9] text-[#0AC8B9] font-bold hover:bg-[#0AC8B9] hover:text-black transition-all uppercase tracking-widest shadow-[0_0_15px_rgba(10,200,185,0.3)]"
-              >
-                Download Clip
-              </a>
             </div>
 
             <div
@@ -374,8 +384,39 @@
       </div>
 
       <div
-        class="text-left text-gray-300 space-y-8 animate-enter delay-2 lg:pt-8"
+        class="text-left text-gray-300 space-y-8 animate-enter delay-2 lg:pt-0"
       >
+        <div
+          id="history-container"
+          class="hex-panel rounded-xl p-6 bg-opacity-30 mb-8 hidden"
+        >
+          <div
+            class="flex items-center justify-between border-b border-gray-700 pb-3 mb-4"
+          >
+            <h3 class="text-xl text-[#C8AA6E]">Match History</h3>
+            <div class="flex items-center space-x-3">
+              <span class="text-xs text-gray-500 uppercase tracking-widest"
+                >Local Storage</span
+              >
+              <button
+                id="clear-history-btn"
+                class="text-[10px] text-red-900 hover:text-red-500 border border-red-900/30 hover:border-red-500 px-2 py-0.5 rounded transition-colors uppercase tracking-wider font-bold"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div
+            id="history-list"
+            class="space-y-4 max-h-[300px] overflow-y-auto history-scroll pr-2"
+          >
+            <div class="text-center text-gray-600 text-sm italic py-4">
+              No recent highlights.
+            </div>
+          </div>
+        </div>
+
         <div class="prose prose-invert max-w-none">
           <p
             class="text-xl leading-relaxed font-light text-gray-400 border-l-2 border-[#0AC8B9] pl-6 italic"
@@ -412,8 +453,18 @@
               <li class="flex items-start">
                 <span class="text-[#0AC8B9] font-bold mr-3">03.</span>
                 <span
-                  >Click <strong>Isolate Highlights</strong>. The system will
-                  render a vertical cut.</span
+                  >Click <strong>Isolate Highlights</strong>. The main view will
+                  clear, and the job will appear in your
+                  <strong>Match History</strong>.</span
+                >
+              </li>
+              <li class="flex items-start">
+                <span class="text-[#0AC8B9] font-bold mr-3">04.</span>
+                <span
+                  >Download your clip from the History panel.
+                  <span class="text-red-400"
+                    >Links expire after 1 hour.</span
+                  ></span
                 >
               </li>
             </ul>
@@ -479,13 +530,11 @@
       class="w-full text-center py-8 mt-auto text-gray-600 animate-enter delay-3"
     >
       <small class="tracking-widest uppercase text-[10px]"
-        >Angela Lee & Ming Lin © 2024 • Forged in Code</small
+        >Ming Lin © 2024 • Forged in Gemini :)</small
       >
     </footer>
 
-    <!-- <script src="index.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
     <script>
       // --- DOM ELEMENTS ---
       const form = document.getElementById("form");
@@ -494,11 +543,15 @@
       // UI Containers
       const uploadPrompt = document.getElementById("upload-prompt");
       const loadingBox = document.getElementById("loading-box");
+      const loadingText = document.getElementById("loading-text");
       const videoWrapper = document.getElementById("video-wrapper");
       const previewVideo = document.getElementById("vid");
-      const dDisplay = document.getElementById("ddisplay");
-      const dBtn = document.getElementById("dbtn");
       const submitBtnContainer = document.getElementById("submit");
+
+      // History Elements
+      const historyContainer = document.getElementById("history-container");
+      const historyList = document.getElementById("history-list");
+      const clearHistoryBtn = document.getElementById("clear-history-btn");
 
       // Inputs
       const startMin = document.getElementById("start-min");
@@ -514,7 +567,6 @@
 
       // --- HELPER FUNCTIONS ---
 
-      // Generate random ID for filenames
       function makeid(length) {
         let result = "";
         const characters =
@@ -530,75 +582,227 @@
         return result;
       }
 
-      // Sleep function to prevent browser freezing during polling
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+      // --- HISTORY MANAGEMENT (LOCAL STORAGE) ---
+
+      const getHistory = () => {
+        const stored = localStorage.getItem("lol_history");
+        return stored ? JSON.parse(stored) : [];
+      };
+
+      const saveHistory = (history) => {
+        localStorage.setItem("lol_history", JSON.stringify(history));
+        renderHistory();
+      };
+
+      const addHistoryItem = (item) => {
+        const history = getHistory();
+        history.unshift(item);
+        if (history.length > 10) history.pop();
+        saveHistory(history);
+      };
+
+      const updateHistoryItem = (id, updates) => {
+        const history = getHistory();
+        const index = history.findIndex((h) => h.id === id);
+        if (index !== -1) {
+          history[index] = { ...history[index], ...updates };
+          saveHistory(history);
+        }
+      };
+
+      clearHistoryBtn.addEventListener("click", () => {
+        if (confirm("Are you sure you want to clear your local history?")) {
+          localStorage.removeItem("lol_history");
+          renderHistory();
+        }
+      });
+
+      // --- HISTORY RENDERING ---
+
+      const renderHistory = () => {
+        const history = getHistory();
+        if (history.length > 0) {
+          historyContainer.classList.remove("hidden");
+          historyList.innerHTML = "";
+        } else {
+          historyContainer.classList.add("hidden");
+          return;
+        }
+
+        const now = Date.now();
+
+        history.forEach((item) => {
+          const card = document.createElement("div");
+          card.className =
+            "bg-black/40 border border-[#785A28]/30 rounded p-3 flex flex-col space-y-2";
+          const date = new Date(item.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          let statusHtml = "";
+
+          if (item.status === "processing") {
+            statusHtml = `
+          <div class="flex items-center space-x-2 text-[#C8AA6E] animate-pulse">
+             <div class="loader-rune-sm"></div>
+             <span class="text-sm font-bold tracking-wider">PROCESSING</span>
+          </div>`;
+          } else if (item.status === "completed") {
+            if (now > item.expiresAt) {
+              statusHtml = `
+            <div class="flex items-center justify-between w-full">
+               <span class="text-red-900 font-bold bg-red-900/20 px-2 py-1 rounded text-xs border border-red-900">LINK EXPIRED</span>
+               <span class="text-xs text-gray-600">Re-upload required</span>
+            </div>`;
+            } else {
+              const minutesLeft = Math.ceil((item.expiresAt - now) / 60000);
+              statusHtml = `
+            <div class="flex flex-col space-y-2 w-full">
+               <a href="${item.link}" target="_blank" class="block w-full text-center py-2 rounded border border-[#0AC8B9] text-[#0AC8B9] text-sm font-bold hover:bg-[#0AC8B9] hover:text-black transition-all uppercase tracking-widest shadow-[0_0_10px_rgba(10,200,185,0.2)]">
+                 Download Highlight
+               </a>
+               <span class="text-[10px] text-center text-gray-500">Expires in <span class="text-[#C8AA6E]">${minutesLeft} mins</span></span>
+            </div>`;
+            }
+          } else {
+            statusHtml = `<span class="text-red-500 font-bold text-xs">PROCESSING FAILED</span>`;
+          }
+
+          card.innerHTML = `
+        <div class="flex justify-between items-start">
+            <div>
+                <div class="text-gray-300 font-bold text-sm truncate max-w-[150px]">${
+                  item.originalName || "Replay Clip"
+                }</div>
+                <div class="text-[10px] text-gray-600 uppercase tracking-widest">${date}</div>
+            </div>
+        </div>
+        <div class="pt-1 border-t border-white/5 mt-1">
+            ${statusHtml}
+        </div>`;
+          historyList.appendChild(card);
+        });
+      };
+
+      setInterval(renderHistory, 60000);
+
+      const pollForProgress = async (queueURL, historyId) => {
+        const postUrl =
+          "https://n4g5fjhkqdah2chkv7xzpadfby0gexzo.lambda-url.us-east-1.on.aws/";
+        let stop = false;
+        let attempts = 0;
+
+        console.log(`Starting polling for ${historyId} using ${queueURL}`);
+
+        while (!stop) {
+          // Timeout protection (approx 3 mins)
+          if (attempts > 60) {
+            updateHistoryItem(historyId, { status: "failed" });
+            throw new Error("Processing timed out.");
+          }
+
+          try {
+            const pollRes = await axios.post(postUrl, { queueURL: queueURL });
+            const responseBody = pollRes.data;
+
+            console.log("Poll Response:", responseBody);
+
+            // If we get data back, the lambda has finished (either success or error)
+            if (responseBody) {
+              // Ensure it's a string for comparison
+              const responseString = String(responseBody);
+
+              // --- SCENARIO 1: ERROR ---
+              // Check if the string contains "error" (case-insensitive)
+              if (responseString.toLowerCase().includes("error")) {
+                console.error("Job Failed:", responseString);
+                updateHistoryItem(historyId, { status: "failed" });
+                stop = true;
+              }
+
+              // --- SCENARIO 2: SUCCESS ---
+              // Otherwise, we assume it is the download link
+              else {
+                updateHistoryItem(historyId, {
+                  status: "completed",
+                  link: responseString,
+                  expiresAt: Date.now() + 3600000,
+                });
+                stop = true;
+              }
+            }
+            // If responseBody is null/empty, the job is likely still running
+            else {
+              console.log("Job still processing...");
+              await sleep(3000);
+              attempts++;
+            }
+          } catch (error) {
+            // Network errors or 500s from the polling endpoint itself -> Retry
+            console.warn("Polling retry...", error);
+            await sleep(3000);
+            attempts++;
+          }
+        }
+      };
       // --- EVENT LISTENERS ---
 
-      // 1. File Selection & Preview Logic
       fileInput.addEventListener("change", () => {
         if (fileInput.files && fileInput.files[0]) {
           const file = fileInput.files[0];
           const fileURL = URL.createObjectURL(file);
-
-          // UI: Hide prompt, show loader briefly, then show video
           uploadPrompt.classList.add("hidden");
           loadingBox.classList.remove("hidden");
           loadingBox.style.display = "flex";
-
-          // Simulate analysis delay for effect
+          loadingText.innerText = "ANALYZING RIFT DATA...";
           setTimeout(() => {
             loadingBox.style.display = "none";
             videoWrapper.classList.remove("hidden");
-
             previewVideo.src = fileURL;
-            modalVideo.src = fileURL; // Set modal source too
+            modalVideo.src = fileURL;
             previewVideo.load();
           }, 800);
         }
       });
 
-      // 2. Auto-Populate Duration
       previewVideo.addEventListener("loadedmetadata", function () {
         const duration = previewVideo.duration;
         if (isFinite(duration)) {
           const minutes = Math.floor(duration / 60);
           const seconds = Math.floor(duration % 60);
-
-          // Auto-fill the end inputs
           endMin.value = minutes;
           endSec.value = seconds;
         }
       });
-      // --- NEW: Cancel / Clear Video Logic ---
+
       const cancelBtn = document.getElementById("cancel-btn");
-
-      cancelBtn.addEventListener("click", (e) => {
-        e.preventDefault(); // Prevent form submission
-        e.stopPropagation(); // Prevent opening the file dialog again
-
-        // 1. Clear the file input
+      const resetFormUI = () => {
         fileInput.value = "";
-
-        // 2. Pause video and clear source
         previewVideo.pause();
         previewVideo.src = "";
-
-        // 3. Reset UI to "Upload" state
         videoWrapper.classList.add("hidden");
         uploadPrompt.classList.remove("hidden");
-
-        // Optional: Reset timer inputs if you want them cleared too
+        loadingBox.style.display = "none";
+        submitBtnContainer.classList.remove("hidden");
+        startMin.value = "";
+        startSec.value = "";
         endMin.value = "";
         endSec.value = "";
+      };
+      cancelBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resetFormUI();
       });
 
       const closeModal = () => {
-        previewVideo.currentTime = modalVideo.currentTime; // Sync time back
+        previewVideo.currentTime = modalVideo.currentTime;
         modalVideo.pause();
         modalOverlay.classList.add("hidden");
       };
-
       closeModalBtn.addEventListener("click", closeModal);
       modalOverlay.addEventListener("click", (e) => {
         if (e.target === modalOverlay) closeModal();
@@ -615,119 +819,86 @@
           return;
         }
 
-        // 1. Calculate Seconds
         const duration = Math.round(previewVideo.duration || 0);
-
-        // Calculate End Time
         let endingInput = Number(endMin.value) * 60 + Number(endSec.value);
         let endingSec =
           (endMin.value !== "" || endSec.value !== "") &&
           endingInput <= duration
             ? endingInput
             : duration;
-
-        // Calculate Start Time
         const startingInput =
           Number(startMin.value) * 60 + Number(startSec.value);
         let startingSec = startingInput < endingSec ? startingInput : 0;
-
-        // Audio Boolean
         const audioBool = audioCheck.checked ? "A" : "M";
 
-        // Generate Filename
-        const fileID = makeid(5); // shortened for cleanliness
+        const fileID = makeid(5);
         const newFileName = `${fileID}-${startingSec}-${endingSec}-${audioBool}`;
 
-        console.log("Processing File:", newFileName);
+        const historyId = Date.now().toString();
 
-        // 2. UI: Lock Interface & Show Loading
-        videoWrapper.classList.add("hidden");
-        submitBtnContainer.classList.add("hidden"); // Hide submit button
-        loadingBox.classList.remove("hidden");
-        loadingBox.style.display = "flex";
+        // 1. Initial History Entry (No queueURL yet)
+        addHistoryItem({
+          id: historyId,
+          originalName: file.name,
+          timestamp: Date.now(),
+          status: "processing",
+          link: null,
+          queueURL: null, // Placeholder
+          expiresAt: null,
+        });
 
-        // Update loading text (optional, assumes you might add a span inside loading-box)
-        // const loadingText = loadingBox.querySelector("span");
-        // if(loadingText) loadingText.innerText = "INITIALIZING UPLOAD...";
+        resetFormUI();
+        historyContainer.classList.remove("hidden");
 
         try {
-          // --- API STEP 1: Get Upload URL ---
+          // 2. Get Upload Key
           const apiUrl =
             "https://4f1wirqn9k.execute-api.us-east-1.amazonaws.com/Prod/upload";
-
           const uploadRes = await axios.post(apiUrl, {
             filename: newFileName + ".mp4",
             withCredentials: false,
           });
 
           const { uploadUrl, fileKey, queueURL } = uploadRes.data;
-          console.log("Upload Key Generated:", fileKey);
 
-          // --- API STEP 2: Upload to S3 ---
-          // if(loadingText) loadingText.innerText = "UPLOADING TO VOID...";
-
-          await axios.put(uploadUrl, file, {
-            headers: { "Content-Type": "video/mp4" },
+          // 3. IMPORTANT: Update History with the queueURL immediately
+          // This allows the job to be resumed if the user reloads now
+          updateHistoryItem(historyId, {
+            queueURL: queueURL,
           });
 
-          console.log("File Uploaded to S3.");
+          // 4. Upload to S3
+          await axios.put(uploadUrl, file, {
+            headers: {
+              "Content-Type": "video/mp4",
+            },
+          });
 
-          // --- API STEP 3: Poll for Completion ---
-          // if(loadingText) loadingText.innerText = "PROCESSING HIGHLIGHTS...";
-
-          const postUrl =
-            "https://n4g5fjhkqdah2chkv7xzpadfby0gexzo.lambda-url.us-east-1.on.aws/";
-          // https://3tmm5t3xpk.execute-api.us-east-1.amazonaws.com/Prod/clip
-          let stop = false;
-          let attempts = 0;
-          let clippedLink = "";
-
-          while (!stop) {
-            if (attempts > 30) {
-              // Timeout after ~60-90 seconds
-              throw new Error("Processing timed out.");
-            }
-
-            try {
-              const pollRes = await axios.post(postUrl, { queueURL: queueURL });
-
-              // Success condition
-              if (pollRes.status === 200 && pollRes.data) {
-                console.log("Process Complete:", pollRes);
-                clippedLink = pollRes.data;
-                stop = true;
-              }
-            } catch (error) {
-              // If 200 comes back in catch block (sometimes happens with axios interceptors)
-              if (error.response && error.response.status === 200) {
-                clippedLink = error.response.data;
-                stop = true;
-              } else {
-                console.log("Still processing... retrying in 3s");
-                await sleep(3000); // WAIT 3 SECONDS
-                attempts++;
-              }
-            }
-          }
-
-          // --- SUCCESS STATE ---
-          loadingBox.style.display = "none";
-
-          // Show Done Video (Optional: User wanted to see 'done.mp4' or the link)
-          // We will show the download button
-          dDisplay.classList.remove("hidden");
-          dBtn.href = clippedLink;
-          dBtn.innerText = "DOWNLOAD HIGHLIGHT"; // Update text
-
-          // Bring back preview (optional)
-          videoWrapper.classList.remove("hidden");
+          // 5. Start Polling
+          pollForProgress(queueURL, historyId);
         } catch (err) {
           console.error("Error in workflow:", err);
-          loadingBox.style.display = "none";
-          videoWrapper.classList.remove("hidden");
-          submitBtnContainer.classList.remove("hidden");
-          alert("An error occurred during processing. Please try again.");
+          updateHistoryItem(historyId, {
+            status: "failed",
+          });
+          alert("An error occurred. Check history.");
         }
+      });
+
+      // --- LOGIC: ON LOAD (RESUME JOBS) ---
+
+      window.addEventListener("DOMContentLoaded", () => {
+        renderHistory();
+
+        // Check for interrupted jobs
+        const history = getHistory();
+        history.forEach((item) => {
+          // If status is processing AND we have the queueURL saved
+          if (item.status === "processing" && item.queueURL) {
+            console.log(`Resuming interrupted job: ${item.originalName}`);
+            pollForProgress(item.queueURL, item.id);
+          }
+        });
       });
     </script>
   </body>
